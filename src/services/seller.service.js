@@ -3,7 +3,9 @@ const twilio = require('twilio');
 const { mailEmail, mailPassword } = require("../config");
 const crypto = require('crypto');
 const bcrypt = require('bcrypt')
-const { accountSid, authToken, contact } = require("../config/");
+const { accountSid, authToken, contact ,asscesstoken,
+refreshtoken} = require("../config/");
+const jwt = require('jsonwebtoken')
 require('../config')
 
 exports.mailfunction  = (email,link)=>{
@@ -64,65 +66,23 @@ exports.createOtp = async(req,res)=>{
 }
 
 
+exports.sellerPresent = async (req) => {
+  try {
+      if(req.body.phone){
+          const user = await sellerModel.findOne({phone:req.body.phone })
+          return user
+      }
+      else if(req.body.email){
+          const user = await sellerModel.findOne({email:req.body.email })
+          return user
+      }
+  } catch (err) {
+      return err
+  }
+}
 
 
-
-
-
-
-
-
-exports.accessTokenVarify =  (req, res, next) => {
-    // const token = req.headers.authorization;
-    const token = req.params.token
-    if (!token) {
-      return res.status(400).json({
-        message: "A token is required for authentication",
-        status: 400,
-        success: false,
-      });
-    } else {
-      // const authHeader = req.headers.authorization;
-      // const bearerToken = authHeader.split(" ");
-      // const token = bearerToken[1];
-      jwt.verify(
-        token,process.env.ACCESS_TOKEN,
-        (error, payload) => {
-          if (error) {
-            res.status(400).json({
-              message: "invalid token",
-              status: 400,
-              success: false,
-            });
-          } else {
-            next();
-          }
-        }
-      );
-    }
-  },
-
-  exports.refreshTokenVarify = (refreshVarify) => {
-    const token = refreshVarify;
-    if (!token) {
-      return {message: "A token is required for authentication"}
-     }
-     else {
-      const token = refreshVarify;
-      const paylod = jwt.verify(token, process.env.REFRESH_TOKEN, (error, payload) => 
-      {
-          if(payload){
-           return payload;
-          }else{
-            return {message: error}
-          }
-      });
-
-      return paylod
-    }
-  },
-
-  exports.accessToken = (userId)=>{
+  exports.accessToken = async(userId)=>{
     const userid = userId
     return new Promise ((resolve,reject)=> {
         const options = {
@@ -131,9 +91,9 @@ exports.accessTokenVarify =  (req, res, next) => {
             audience: userid
         };
       const paylod = {};
-        jwt.sign(paylod, process.env.ACCESS_TOKEN,  options,(err, token) => {
+        jwt.sign(paylod, asscesstoken,  options,(err, token) => {
             if (err) {
-                reject({message: 'Invalid operation!'});
+                return reject({message: 'Invalid operation!'});
             } else {
                 resolve(token);
             }
@@ -150,7 +110,7 @@ exports.refreshToken =(userId)=>{
           audience: userid
       };
       const paylod = {};
-      jwt.sign(paylod, process.env.REFRESH_TOKEN,  options,(err, token) => {
+      jwt.sign(paylod, refreshtoken,  options,(err, token) => {
           if (err) {
               reject({message: 'Invalid operation!'});
           } else {
@@ -158,4 +118,25 @@ exports.refreshToken =(userId)=>{
           }
       })
   });
+},
+
+
+exports.refreshTokenVarify = (refreshVarify) => {
+  const token = refreshVarify;
+  if (!token) {
+    return {message: "A token is required for authentication"}
+   }
+   else {
+    const token = refreshVarify;
+    const paylod = jwt.verify(token, refreshtoken, (error, payload) => 
+    {
+        if(payload){
+         return payload;
+        }else{
+          return {message: error}
+        }
+    });
+
+    return paylod
+  }
 }

@@ -1,5 +1,7 @@
-const sellerRoute = require('./seller.route')
+const sellerRoute = require('./seller.route');
+const adminRoute = require('./admin.route')
 module.exports = {
-    sellerRoute
+    sellerRoute,
+    adminRoute
 }
 

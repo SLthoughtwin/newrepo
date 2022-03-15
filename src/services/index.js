@@ -1,8 +1,14 @@
-const { mailfunction ,bcryptPasswordMatch, crypto_string,createOtp} = require('./seller.service')
+const { mailfunction ,bcryptPasswordMatch, crypto_string,
+    createOtp,sellerPresent,refreshToken,
+    accessToken,refreshTokenVarify} = require('./seller.service')
 
 module.exports = {
     mailfunction,
     bcryptPasswordMatch,
     crypto_string,
-    createOtp
+    createOtp,
+    sellerPresent,
+    accessToken,
+    refreshToken,
+    refreshTokenVarify
 }
