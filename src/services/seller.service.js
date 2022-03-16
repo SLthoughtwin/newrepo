@@ -40,9 +40,7 @@ exports.bcryptPasswordMatch = async(user_pass,db_pass)=>{
 },
 
 exports.crypto_string = ()=>{
-  return  crypto.createHash('sha256')
-  .update('this is  node!')
-  .digest('hex');
+  return  crypto.randomBytes(64).toString('hex');
 }
 
 
@@ -64,6 +62,20 @@ exports.createOtp = async(req,res)=>{
    }
 
 }
+
+
+exports.sendMsg = async(req)=>{
+  const phone = req.body.phone
+  const client =  new twilio(accountSid, authToken);
+        let Otp = Math.floor(Math.random() * 1000000 + 1);
+       await  client.messages
+          .create({
+            body: `you are approved by admin now you can login`,
+            to: "+919302807262",
+            from: contact,
+          })
+
+},
 
 
 exports.sellerPresent = async (req) => {
@@ -139,4 +151,30 @@ exports.refreshTokenVarify = (refreshVarify) => {
 
     return paylod
   }
+}
+
+
+exports.sendMsgBymail  = (email)=>{ 
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth:{
+      user : mailEmail,
+      pass : mailPassword,
+    }
+  });
+
+  const mailOption = {
+    from : mailEmail,
+    to : email,
+    subject : 'testing and testing',
+    text : "your application approved by admin now you can login"
+  }
+  
+  transporter.sendMail(mailOption)
+  .then((res)=>{
+    // console.log('mail send successfully')
+  }).catch((err)=>{
+    console.log('oops! error')
+  })
+
 }

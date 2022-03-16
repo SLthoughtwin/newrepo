@@ -2,16 +2,21 @@ const bcrypt = require('bcrypt');
 const mongoose = require('mongoose')
 const {crypto_string} = require('../services/')
 
-const sellerSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
 
     name:	String,
     lastName:	String,
     profile:	String,
     phone	:String,
     email:	String,
-    role:	String,
+    role:{
+      type:String,
+      enum:["admin","seller","user"]
+    },
     password	:String,
-    resetToken:	String,
+    resetToken:String,
+    otp: String,
+    resetTime:Date,
     active:{
       type: Boolean,
       default: false
@@ -31,15 +36,16 @@ const sellerSchema = new mongoose.Schema({
 
 },{timestamps:true})
 
-sellerSchema.pre('save',async function(next){
+userSchema.pre('save',async function(next){
     const token = crypto_string();
-    this.resetToken = await token;
+    this.resetToken =  token;
+    this.resetTime =  Date.now()+(10*60000)
     if(this.isModified('password')){
       this.password = await bcrypt.hash(this.password,10)
     }
     next()
 })
 
-const sellerModel =  mongoose.model('sellerModel', sellerSchema)
+const User =  mongoose.model('User', userSchema)
 
-module.exports = sellerModel;
+module.exports = User;

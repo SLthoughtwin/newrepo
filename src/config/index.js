@@ -8,6 +8,8 @@ const authToken = process.env.TWILIO_AUTH_TOKEN
 const contact = process.env.TWILIO_CONTACT
 const asscesstoken = process.env.ACCESS_TOKEN
 const refreshtoken = process.env.REFRESH_TOKEN
+const admin = process.env.ADMIN
+const seller = process.env.SELLER
 module.exports = {
     port,
     mailEmail,
@@ -17,5 +19,7 @@ module.exports = {
     authToken,
     contact,
     asscesstoken,
-    refreshtoken
+    refreshtoken,
+    admin,
+    seller
 }

@@ -1,19 +1,22 @@
-const {sellerModel} =require('./../models')
-const {otpModel} = require("./../models/");
+const {User} =require('./../models/')
+const {sellel} = require('./../config/')
 const { refreshTokenVarify } = require('./../services/')
 const {
   mailfunction,
   bcryptPasswordMatch,
   createOtp,
   accessToken,
-  refreshToken
+  refreshToken,
+  sendMsg,
+  sendMsgBymail
 } = require("../services/");
 
 exports.signUPSeller = async (req, res) => {
   try {
     if (req.body.email)
    {
-      const result = await sellerModel.create(req.body);
+     req.body.role = sellel
+      const result = await User.create(req.body);
       const link = `http://localhost:8080/seller/${result.resetToken}`;
       mailfunction(req.body.email, link)
         .then((response) => {
@@ -33,12 +36,13 @@ exports.signUPSeller = async (req, res) => {
     } 
     else if (req.body.phone) 
     {
-      const result = await sellerModel.create(req.body);
-      const deleteOtp = await otpModel.findOneAndDelete({phone: req.body.phone})
       const Otp = await createOtp(req, res);
-      const setOtp = await otpModel.create({otp: Otp,phone: req.body.phone,});
+      req.body.otp = Otp
+      req.body.role = sellel
+      const result = await User.create(req.body);
       res.status(200).json({
           message: "otp send to your number",
+          success: true
         });
      }
     else 
@@ -56,20 +60,17 @@ exports.signUPSeller = async (req, res) => {
 };
 
 
-
-
-
 exports.sellerLogin = async (req, res) => {
    
   try {
    const sellerPresent = async (req) => {
       
           if(req.body.phone){
-              const user1 = await sellerModel.findOne({phone:req.body.phone })
+              const user1 = await User.findOne({phone:req.body.phone })
               return user1
           }
           else if(req.body.email){
-              const user1 = await sellerModel.findOne({email:req.body.email })
+              const user1 = await User.findOne({email:req.body.email })
               return user1
           }
       
@@ -83,7 +84,7 @@ exports.sellerLogin = async (req, res) => {
     {
       if (user.email) 
       {
-        const result = await sellerModel.findOne({ email: req.body.email });
+        const result = await User.findOne({ email: req.body.email });
         if(!result)
         {
           res.status(400).json({
@@ -92,15 +93,32 @@ exports.sellerLogin = async (req, res) => {
         }
         else if(result.isVerified === false)
         {
+          if(result.role === "seller"){
+          if(result.resetTime <= Date.now()){
+          const updatetime = await User.findOneAndUpdate({email:req.body.email},{resetTime:Date.now()+(10*60000)})
           const link = `http://localhost:8080/seller/${result.resetToken}`;
           mailfunction(req.body.email, link)
           .then((response) => {
-            res.status(200).json({message : "mail send to your gamil"});
+            res.status(200).json({
+              message : "mail send to your gamil",
+              success: true
+            });
           })
           .catch((err) => {
             res.status(200).json("mail not send");
           });
+        }else{
+          res.status(400).json({
+            message: "token time is not expired yet kindly wait for 10 min to get new token",
+          })
         }
+      }else{
+        res.status(400).json({
+          message: "role must be seller",
+          success: false
+        })
+      }
+    }
         else if (result.isVerifiedByAdmin === true) 
         {
           const db_pass = result.password;
@@ -134,35 +152,50 @@ exports.sellerLogin = async (req, res) => {
           });
         }
       } 
+
+
+      //user.phone for otp
       else if (user.phone)
-       {
-        const result = await sellerModel.findOne({ phone: req.body.phone });
+      {
+        const result = await User.findOne({ phone: req.body.phone });
         if(!result)
         {
           res.status(400).json({
             message: "invalid number ",
           })
         }
-       else if (result.isVerified === false) 
+        else if (result.isVerified === false ) 
         {
-          const deleteOtp = await otpModel.findOneAndDelete({phone: req.body.phone})
-          const Otp = await createOtp(req, res);
-          if (!Otp) 
-          {
-            res.status(400).json({
-              message: "invalid number",
-            });
-          } 
-          else 
-          {
-            const setOtp = await otpModel.create({
-              otp: Otp,
-              phone: req.body.phone,
-            });
-            res.status(200).json({
-              message: "otp send to your number",
-            });
-          }
+          if(result.role === "seller"){
+           if(result.resetTime <= Date.now())
+           {
+
+           const Otp = await createOtp(req, res);
+            if (!Otp) 
+            {
+              res.status(400).json({
+                message: "otp error",
+              });
+            } 
+            else 
+            {
+              const resetOtp = await User.findOneAndUpdate({phone: req.body.phone},{otp: Otp,resetTime:Date.now()+(10*60000)});
+              res.status(200).json({
+                success: true,
+                message: "otp send to your number",
+              });
+            }
+          }else{
+             res.status(400).json({
+               message: "token time is not expired yet kindly wait for 10 min to get new token",
+             })
+           }
+        }else{
+          res.status(400).json({
+            message:"role must be seller",
+            success: false
+          })
+        }
         }
         else if (result.isVerifiedByAdmin === true) 
         {
@@ -210,6 +243,7 @@ exports.sellerLogin = async (req, res) => {
 } 
 catch (err) 
 {
+  console.log(err)
   res.status(400).json({
     message: "err",
     success: false
@@ -222,26 +256,45 @@ catch (err)
 
 
 exports.sellerVarified = async (req, res) => {
-  const result = await sellerModel.updateOne(
+  // console.log(req.params.token)
+  const result = await User.findOne({resetToken:req.params.token})
+  // console.log(result)
+  if(result.resetTime >= Date.now()){
+  const result = await User.findOneAndUpdate(
     { resetToken: req.params.token },
     { isVerified: true, resetToken: "" }
   );
-  return res.send("verified :)");
+  // console.log(result)
+  sendMsgBymail(result.email);
+  return res.status(200).json({
+    message:"verified by mail",
+    success: true
+  });
+  }else{
+    return res.status(400).json({
+      message: "your verification time has expired ",
+      success: false
+    });
+  }
 };
 
 exports.verifiedOtp = async (req, res) => {
   const otp = req.body.otp;
   const contact = req.body.phone;
 
-  const result = await otpModel.findOne({ phone: contact });
+  const result = await User.findOne({ phone: contact });
   if (!result) {
     return res.send("invalid otp/number");
-  } else {
+  } else 
+  {
+    if(result.resetTime >= Date.now()){
+
     if (result.otp === otp) {
-      const sellerresult = await sellerModel.updateOne(
+      const sellerresult = await User.updateOne(
         { phone: req.body.phone },
         { isVerified: true, resetToken: "" }
       );
+     await sendMsg(req)
 
       res.status(200).json({
         message: "varified otp",
@@ -251,6 +304,11 @@ exports.verifiedOtp = async (req, res) => {
         message: "invalid user/otp ",
       });
     }
+  }else{
+    res.status(400).json({
+      message: "your otp time has expired ",
+    });
+  }
   }
 };
 
@@ -271,7 +329,7 @@ exports.createAccessRefreshToken = async(req,res)=>{
           message: "user not authenticated"
       })
   }
-  const userToken = await sellerModel.findOne({id:userId})
+  const userToken = await User.findOne({id:userId})
   if(!userToken){
       return res.status(400).json({
           success:false,

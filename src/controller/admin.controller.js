@@ -1,62 +1,51 @@
 const  jwt  = require("jsonwebtoken");
-const {sellerModel} = require("./../models/");
+const {User} = require("./../models/");
+const {admin} = require('./../config/')
 
 const {accessToken} = require("../services/");
 
 exports.adminLogin = async(req, res) => {
-
+ debugger
   try {
-    const sellerPresent = async (req) => {
-       
-           if(req.body.phone){
-               const user1 = await sellerModel.findOne({phone:req.body.phone })
-               return user1
-           }
-           else if(req.body.email){
-               const user1 = await sellerModel.findOne({email:req.body.email })
-               return user1
-           }
-       
-     }
-     const user = await sellerPresent(req);
-
+    const user = await User.findOne({email:req.body.email })
      if(!user){
-      //  req.body.role = "admin";
-       const createAdmin = await sellerModel.create(req.body)
-       res.status(200).json({
+       req.body.role = admin;
+       const createAdmin = await User.create(req.body)
+       const userId = createAdmin.id
+      const accesstoken = await accessToken(userId)
+       return res.status(200).json({
          message : "signUP successfully",
          success : true
        })
      }
      else{
-      const foundAdmin = await sellerModel.findOne({phone:req.body.phone})
+      const foundAdmin = await User.findOne({email:req.body.email})
       const userId = foundAdmin.id
       const accesstoken = await accessToken(userId)
-      res.status(200).json({
+      return res.status(200).json({
         message : "login successfully",
         success : true,
-        accesstoken : accesstoken
+        accesstoken:accesstoken
       })
       
      }
   }catch(error){
-    res.status(400).json({
-      message: error,
+    console.log(error)
+    return res.status(400).json({
+      message: error.message,
       success: false
     })
   }
 }
 
-
-
 exports.verifiedByAdmin= async(req, res) => {
   try{
     const id = req.body.id
-    const result = await sellerModel.findOne({_id:id});
+    const result = await User.findOne({_id:id});
     if(!result){
       return res.send("invalid user")
     }else{
-        const admin = await sellerModel.updateOne({_id:id},{isVerifiedByAdmin:true})
+        const admin = await User.updateOne({_id:id},{isVerifiedByAdmin:true})
         res.status(200).json({
         messsage : "approve by admin"
         })

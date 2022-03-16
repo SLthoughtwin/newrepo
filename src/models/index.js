@@ -1,8 +1,5 @@
-const sellerModel = require('./sellerModel');
-const otpModel = require('./otp');
-
+const User = require('./sellerModel');
 
 module.exports = {
-   sellerModel,
-   otpModel
+   User
 }

@@ -1,6 +1,6 @@
 const { mailfunction ,bcryptPasswordMatch, crypto_string,
     createOtp,sellerPresent,refreshToken,
-    accessToken,refreshTokenVarify} = require('./seller.service')
+    accessToken,refreshTokenVarify,sendMsg,sendMsgBymail} = require('./seller.service')
 
 module.exports = {
     mailfunction,
@@ -10,5 +10,7 @@ module.exports = {
     sellerPresent,
     accessToken,
     refreshToken,
-    refreshTokenVarify
+    refreshTokenVarify,
+    sendMsg,
+    sendMsgBymail
 }
