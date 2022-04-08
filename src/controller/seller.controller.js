@@ -1,6 +1,8 @@
-const {User} =require('./../models/')
-const {sellel} = require('./../config/')
-const { refreshTokenVarify } = require('./../services/')
+const { User ,SellerProfile} = require('./../models/');
+const { seller } = require('./../config/');
+const { refreshTokenVarify } = require('./../services/');
+const cloudinary = require('cloudinary').v2
+const { cloud_name , cloud_key, cloud_secret} = require('../config/')
 const {
   mailfunction,
   bcryptPasswordMatch,
@@ -8,272 +10,231 @@ const {
   accessToken,
   refreshToken,
   sendMsg,
-  sendMsgBymail
-} = require("../services/");
+  sendMsgBymail,
+  verifyEmail,
+  createToken
+} = require('../services/');
+const {html}= require('../template/template');
+const { updateUser } = require('.');
+const { result } = require('lodash');
+// const { SellerProfile, User } = require('../models/');
 
 exports.signUPSeller = async (req, res) => {
   try {
-    if (req.body.email)
-   {
-     req.body.role = sellel
-      const result = await User.create(req.body);
-      const link = `http://localhost:8080/seller/${result.resetToken}`;
-      mailfunction(req.body.email, link)
-        .then((response) => {
-          res.status(201).json({
-            success: true,
-            message: "check your mail to verified :)",
-          });
-          console.log("check your mail to verified");
-        })
-        .catch((err) => {
-          res.status(400).json({
-            success: false,
-            message: "mail not send :)",
-          });
-          console.log(err);
-        });
-    } 
-    else if (req.body.phone) 
-    {
-      const Otp = await createOtp(req, res);
-      req.body.otp = Otp
-      req.body.role = sellel
-      const result = await User.create(req.body);
-      res.status(200).json({
-          message: "otp send to your number",
-          success: true
-        });
-     }
-    else 
-    {
-      res.status(400).json({
-        message: "email/phone are required",
-        success: false,
+    const verifyMail = verifyEmail(req);
+    if (verifyMail === true) {
+      const user = await User.findOne({
+        email: req.body.email,
+        phone: req.body.phone,
       });
-    }
-  } 
-  catch (error) 
-  {
-    res.status(400).send(error);
-  }
-};
-
-
-exports.sellerLogin = async (req, res) => {
-   
-  try {
-   const sellerPresent = async (req) => {
-      
-          if(req.body.phone){
-              const user1 = await User.findOne({phone:req.body.phone })
-              return user1
-          }
-          else if(req.body.email){
-              const user1 = await User.findOne({email:req.body.email })
-              return user1
-          }
-      
-    }
-    const user = await sellerPresent(req)
-    if (!user) 
-    {
-      this.signUPSeller(req, res);
-    } 
-    else 
-    {
-      if (user.email) 
-      {
-        const result = await User.findOne({ email: req.body.email });
-        if(!result)
-        {
-          res.status(400).json({
-            message: "invalid email"
-          })
-        }
-        else if(result.isVerified === false)
-        {
-          if(result.role === "seller"){
-          if(result.resetTime <= Date.now()){
-          const updatetime = await User.findOneAndUpdate({email:req.body.email},{resetTime:Date.now()+(10*60000)})
-          const link = `http://localhost:8080/seller/${result.resetToken}`;
-          mailfunction(req.body.email, link)
+      if (!user) {
+        req.body.role = seller;
+        const email = req.body.email;
+        const result = await User.create(req.body);
+        const link = `http://localhost:8080/auth/seller/${result.resetToken}`;
+        // const link = await createToken(result.email);
+        await mailfunction(email,html(link))
           .then((response) => {
-            res.status(200).json({
-              message : "mail send to your gamil",
-              success: true
+            res.status(201).json({
+              success: true,
+              message: 'check your mail to verified :)',
             });
+            console.log('check your mail to verified');
           })
           .catch((err) => {
-            res.status(200).json("mail not send");
-          });
-        }else{
-          res.status(400).json({
-            message: "token time is not expired yet kindly wait for 10 min to get new token",
-          })
-        }
-      }else{
-        res.status(400).json({
-          message: "role must be seller",
-          success: false
-        })
-      }
-    }
-        else if (result.isVerifiedByAdmin === true) 
-        {
-          const db_pass = result.password;
-          const user_pass = req.body.password;
-          const match = await bcryptPasswordMatch(user_pass, db_pass);
-          if (match === true) 
-           {
-            const userId = result.id
-            const accesstoken = await accessToken(userId)
-            const refreshtoken = await refreshToken(userId);
-            return res.status(200).json({
-              success: true,
-              accToken: accesstoken,
-              refreshtoken:refreshtoken,
-              message: "login successfully by email",
-            });
-          } 
-          else 
-          {
+            console.log(err)
             res.status(400).json({
               success: false,
-              message: "invalid login details",
+              message: 'mail not send :)',
             });
-          }
-        } 
-        else 
-        {
-          res.status(400).json({
-            success: false,
-            message: "you are not Approve by Admin",
           });
-        }
-      } 
-
-
-      //user.phone for otp
-      else if (user.phone)
-      {
-        const result = await User.findOne({ phone: req.body.phone });
-        if(!result)
-        {
-          res.status(400).json({
-            message: "invalid number ",
-          })
-        }
-        else if (result.isVerified === false ) 
-        {
-          if(result.role === "seller"){
-           if(result.resetTime <= Date.now())
-           {
-
-           const Otp = await createOtp(req, res);
-            if (!Otp) 
-            {
-              res.status(400).json({
-                message: "otp error",
-              });
-            } 
-            else 
-            {
-              const resetOtp = await User.findOneAndUpdate({phone: req.body.phone},{otp: Otp,resetTime:Date.now()+(10*60000)});
-              res.status(200).json({
-                success: true,
-                message: "otp send to your number",
-              });
-            }
-          }else{
-             res.status(400).json({
-               message: "token time is not expired yet kindly wait for 10 min to get new token",
-             })
-           }
-        }else{
-          res.status(400).json({
-            message:"role must be seller",
-            success: false
-          })
-        }
-        }
-        else if (result.isVerifiedByAdmin === true) 
-        {
-          const db_pass = result.password;
-          const user_pass = req.body.password;
-          const match = await bcryptPasswordMatch(user_pass, db_pass);
-          if (match === true) 
-          {
-            const userId = result.id
-            const accesstoken = await accessToken(userId)
-            const refreshtoken = await refreshToken(userId);
-            res.status(200).json({
-                success: true,
-                accToken: accesstoken,
-                refreshtoken: refreshtoken,
-                message: "login successfully by otp",
-              });
-          
-            
-          } 
-          else 
-          {
-            res.status(400).json({
-              success: false,
-              message: "invalid login details",
-            });
-          }
-        } 
-        else 
-        {
-          res.status(400).json({
-            success: false,
-            message: "you are not verified by Admin",
-          });
-        }
-      } 
-      else 
-      {
+      } else {
         res.status(400).json({
-          message: "email/phone are required",
+          message: 'email/phone already exist',
           success: false,
         });
       }
+    } else {
+      res.status(400).json({
+        message:
+          'invalid gmail formate please try this formate souarbh@gmail.com/yopmail.com',
+        success: false,
+      });
     }
-} 
-catch (err) 
-{
-  console.log(err)
-  res.status(400).json({
-    message: "err",
-    success: false
-  })
-}
+  } catch (error) {
+    res.status(400).json({
+      message: 'email/phone already exist......',
+      success: false,
+    });
+  }
+};
+// const link = `http://localhost:8080/seller/${result.resetToken}`;
+// module.exports = {link};
+
+exports.sellerLogin = async (req, res) => {
+  try {
+    const returnUser = async (req) => {
+      if (req.body.phone) {
+        const user = await User.findOne({ phone: req.body.phone });
+        return user;
+      } else {
+        const user = await User.findOne({ email: req.body.email });
+        return user;
+      }
+    };
+    const user = await returnUser(req);
+    if (user != null) {
+      if (req.body.email) {
+        const result = await User.findOne({ email: req.body.email });
+        if (!result) {
+          res.status(400).json({
+            message: 'invalid email',
+          });
+        } else if (result.role === 'seller') {
+          if (result.isVerified === true) {
+            if (result.isApproved === true) {
+              const db_pass = result.password;
+              const user_pass = req.body.password;
+              const match = await bcryptPasswordMatch(user_pass, db_pass);
+              if (match === true) {
+                const userId = result.id;
+                const accesstoken = await accessToken(userId);
+                const refreshtoken = await refreshToken(userId);
+                return res.status(200).json({
+                  success: true,
+                  accToken: accesstoken,
+                  refreshtoken: refreshtoken,
+                  message: 'login successfully',
+                });
+              } else {
+                res.status(400).json({
+                  success: false,
+                  message: 'invalid login details',
+                });
+              }
+            } else {
+              res.status(400).json({
+                success: false,
+                message: 'you are not approved by admin',
+              });
+            }
+          } else {
+            res.status(400).json({
+              success: false,
+              message: 'you are not verified by ',
+            });
+          }
+        } else {
+          res.status(400).json({
+            success: false,
+            message: 'role must be seller',
+          });
+        }
+      } else if (req.body.phone) {
+        const result = await User.findOne({ phone: req.body.phone });
+        if (result.otp === null) {
+          const Otp = await createOtp(req, res);
+          const setOtp = await User.findOneAndUpdate(
+            { phone: req.body.phone },
+            { otp: Otp },
+          );
+          res.status(200).json({
+            success: true,
+            message: 'otp send to your number',
+          });
+        } else {
+          if (!result) {
+            res.status(400).json({
+              message: 'invalid number ',
+            });
+          } else if (result.role === 'seller') {
+            if (result.isVerified === true) {
+              if (result.isApproved === true) {
+                if (result.otp == 'true') {
+                  const db_pass = result.password;
+                  const user_pass = req.body.password;
+                  const match = await bcryptPasswordMatch(user_pass, db_pass);
+                  if (match === true) {
+                    const userId = result.id;
+                    const accesstoken = await accessToken(userId);
+                    const refreshtoken = await refreshToken(userId);
+                    return res.status(200).json({
+                      success: true,
+                      accessToken: accesstoken,
+                      refreshtoken: refreshtoken,
+                      message: 'login successfully',
+                    });
+                  } else {
+                    res.status(400).json({
+                      success: false,
+                      message: 'invalid login details',
+                    });
+                  }
+                } else {
+                  res.status(400).json({
+                    success: false,
+                    message: 'first verify otp then login.....?',
+                  });
+                }
+              } else {
+                res.status(400).json({
+                  success: false,
+                  message: 'you are not approved by admin ',
+                });
+              }
+            } else {
+              res.status(400).json({
+                success: false,
+                message: 'your email is not verified ',
+              });
+            }
+          } else {
+            res.status(400).json({
+              success: false,
+              message: 'role must be seller',
+            });
+          }
+        }
+      }
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'user not found',
+      });
+    }
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'this phone number are not registerd in twilio sms',
+    });
+  }
 };
 
-
-
-
-
 exports.sellerVarified = async (req, res) => {
-  // console.log(req.params.token)
-  const result = await User.findOne({resetToken:req.params.token})
-  // console.log(result)
-  if(result.resetTime >= Date.now()){
-  const result = await User.findOneAndUpdate(
-    { resetToken: req.params.token },
-    { isVerified: true, resetToken: "" }
-  );
-  // console.log(result)
-  sendMsgBymail(result.email);
-  return res.status(200).json({
-    message:"verified by mail",
-    success: true
-  });
-  }else{
-    return res.status(400).json({
-      message: "your verification time has expired ",
-      success: false
+  const result = await User.findOne({ resetToken: req.params.token });
+  if (result.isVerified === false) {
+
+    if (result.resetTime >= Date.now()) {
+      const result = await User.findOneAndUpdate(
+        { resetToken: req.params.token },
+        { isVerified: true },
+      );
+
+      // sendMsgBymail(result.email);
+      return res.status(200).json({
+        message: 'verified by mail',
+        success: true,
+      });
+    } else {
+      return res.status(400).json({
+        message: 'your verification time has expired ',
+        success: false,
+      });
+    }
+  } else {
+    return res.status(200).json({
+      message: 'allready verified',
+      success: true,
     });
   }
 };
@@ -284,65 +245,156 @@ exports.verifiedOtp = async (req, res) => {
 
   const result = await User.findOne({ phone: contact });
   if (!result) {
-    return res.send("invalid otp/number");
-  } else 
-  {
-    if(result.resetTime >= Date.now()){
+    return res.send('invalid otp/number');
+  } else {
+    // if(result.resetTime <= Date.now()){
 
     if (result.otp === otp) {
       const sellerresult = await User.updateOne(
         { phone: req.body.phone },
-        { isVerified: true, resetToken: "" }
+        { otp: true, resetToken: '' },
       );
-     await sendMsg(req)
+      // await sendMsg(req);
 
       res.status(200).json({
-        message: "varified otp",
+        message: 'varified otp',
       });
     } else {
       res.status(400).json({
-        message: "invalid user/otp ",
+        message: 'invalid user/otp ',
       });
     }
-  }else{
-    res.status(400).json({
-      message: "your otp time has expired ",
-    });
+    // }else{
+    //   res.status(400).json({
+    //     message: "otp time has expired",
+    //     success: false
+    //   })
+    // }
   }
+};
+
+exports.logoutSelller = async (req, res) => {
+  try {
+    const _id = req.body.id;
+    const data = await User.findOne({ _id });
+    if (!data) {
+      res.status(400).json({
+        success: false,
+        message: 'invalid id',
+      });
+    } else {
+      const result = await User.findByIdAndUpdate({ _id }, { otp: null });
+      res.status(200).json({
+        message: 'logout successfully',
+        success: true,
+      });
+    }
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'id lenght must be 24/invalid id',
+    });
   }
 };
 
 
 
-exports.createAccessRefreshToken = async(req,res)=>{
-  const refreshVarify = req.body.token;
-  const paylod = refreshTokenVarify(refreshVarify)
-  console.log("$$$$$$$$#####",paylod);
-  if(!paylod){
-   return res.status(400).send("invalid user")
-  }
-  const userId = paylod.aud;
-  console.log("=============>",userId);
-  if(!userId){
+
+exports.createProfile = async (req, res) => {
+  try{
+      const result = await User.findOne({ _id: req.body.sellerId });
+      if (!result) {
+        return res.status(400).json({
+          message: 'please insert valid sellerId',
+          succes: false,
+        });
+      }
+      const findProfile = await SellerProfile.findOne({ sellerId: req.body.sellerId });
+      if (findProfile) {
+       updateProfile(req,res)
+      }else{
+          const createProfile = await SellerProfile.create(req.body)
+          return res.status(200).json({
+            createProfile:createProfile,
+            message: 'create profile successfully',
+            succes: true,
+          });
+      }
+  }catch(error){
       return res.status(400).json({
-          success:false,
-          message: "user not authenticated"
-      })
+          message: 'Id lenght must be 24 character/invalid id format',
+          succes: false,
+        });
   }
-  const userToken = await User.findOne({id:userId})
-  if(!userToken){
+
+};
+
+updateProfile = async (req, res) => {
+  try{
+      const id = req.body.sellerId;
+      const fullName = req.body.fullName
+      if(fullName){
+        updateUserProfileTable(id,fullName)
+      }
+      const result = await SellerProfile.findOneAndUpdate({ sellerId: id }, req.body, {
+        new: true,
+      });
+      if (!result) {
+        return res.status(400).json({
+          message: 'inavlid id',
+          succes: false,
+        });
+      }
+      return res.status(200).json({
+        message: 'profile update successfully',
+        succes: true,
+        updateadd: result,
+      });
+  }catch(error){
       return res.status(400).json({
-          success:false,
-          message: "invalid user"
-      })
-  }else{
-    console.log("=============>",userId)
-      const access_Token = await accessToken(userId)
-      const refresh_Token =  await refreshToken(userId);
-     return res.status(400).json({
-       accesstoken:access_Token,
-      refrestToken:refresh_Token
-    });
+          message: 'Id lenght must be 24 character/invalid id format',
+          succes: false,
+        });
   }
+
+};
+
+updateUserProfileTable = async (id,fullName)=>{
+
+  const result = await User.findOneAndUpdate({ sellerId: id }, req.body, {
+    new: true,
+  });
+  
 }
 
+exports.createAccessRefreshToken = async (req, res) => {
+  const refreshVarify = req.body.token;
+  const paylod = refreshTokenVarify(refreshVarify);
+  console.log('$$$$$$$$#####', paylod);
+  if (!paylod) {
+    return res.status(400).send('invalid user');
+  }
+  const userId = paylod.aud;
+  console.log('=============>', userId);
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      message: 'user not authenticated',
+    });
+  }
+  const userToken = await User.findOne({ id: userId });
+  if (!userToken) {
+    return res.status(400).json({
+      success: false,
+      message: 'invalid user',
+    });
+  } else {
+    console.log('=============>', userId);
+    const access_Token = await accessToken(userId);
+    const refresh_Token = await refreshToken(userId);
+    return res.status(400).json({
+      accesstoken: access_Token,
+      refrestToken: refresh_Token,
+    });
+  }
+};
