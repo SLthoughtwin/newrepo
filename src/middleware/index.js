@@ -10,7 +10,8 @@ const {
   uploadImage,
   deleteImageFromCloud,
   checkFilter,
-  productUpdateValidation
+  productUpdateValidation,
+  uploadImage1
 } = require('./seller.middleware');
 const { adminValidation,categoryValidation,brandValidation } = require('./admin.middleware');
 
@@ -29,5 +30,6 @@ module.exports = {
   checkFilter,
   productUpdateValidation,
   categoryValidation,
-  brandValidation
+  brandValidation,
+  uploadImage1
 };

@@ -30,7 +30,6 @@ const uploads = multer({ storage: storage,
 exports.uploadImage = (req, res, next) => {
   
   uploads(req, res, (error) => {
-    // console.log("========>", req.params,req.params.files)
     if (!error) {
       if(req.files === undefined){
         next()
@@ -51,7 +50,31 @@ exports.uploadImage = (req, res, next) => {
       }
     }
     else {
-      // console.log("===rfxvgxdgdfg")
+     return res.status(400).json({ status: 400, message: error.message, success: false })
+    }
+  })
+}
+
+
+exports.uploadImage1 = (req, res, next) => {
+  
+  uploads(req, res, (error) => {
+    if (!error) {
+      if(req.files.length===0 || req.files === undefined){
+        next()
+      }else{
+        
+        if(req.files.length == 1){
+           next()
+        }else{
+          return res.status(404).json({
+            message: "Only single file is allow",
+            succes: false
+          })
+        }
+      }
+    }
+    else {
      return res.status(400).json({ status: 400, message: error.message, success: false })
     }
   })

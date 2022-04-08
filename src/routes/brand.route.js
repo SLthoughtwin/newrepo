@@ -8,7 +8,7 @@ const {
     showBrandById,
     deleteBrand,
   } = require('../controller');
-const {accessTokenVarify,checkRole,uploadImage,uploadfile} = require('../middleware')
+const {accessTokenVarify,checkRole,uploadImage1,uploadfile} = require('../middleware')
 
 /**
  * @swagger
@@ -54,7 +54,7 @@ const {accessTokenVarify,checkRole,uploadImage,uploadfile} = require('../middlew
  *
  *
  */
-router.post('/',uploadImage,accessTokenVarify,checkRole('admin'),uploadfile,createBrand)
+router.post('/',uploadImage1,accessTokenVarify,checkRole('admin'),uploadfile,createBrand)
 
 /**
  * @swagger
@@ -79,7 +79,7 @@ router.post('/',uploadImage,accessTokenVarify,checkRole('admin'),uploadfile,crea
  *
  *
  */
-router.put('/',uploadImage,accessTokenVarify,checkRole('admin'),uploadfile,updateBrand)
+router.put('/',uploadImage1,accessTokenVarify,checkRole('admin'),uploadfile,updateBrand)
 
 
 /**

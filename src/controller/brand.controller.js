@@ -4,6 +4,7 @@ const objectID = require('mongodb').ObjectID;
 
 exports.createBrand = async (req, res) => {
   try {
+      console.log('============>',req.imgarray.image_url)
     const result = await Brand.findOne({ brand_name: req.body.brand_name });
     if (result) {
       return res.status(400).json({
